@@ -17,10 +17,9 @@
 #   DM_XCODE_DERIVED_DATA  derived data (default SHELL_DIR/dd); FONT_PY / STD_FONT as for build_ipa.sh
 #   DM_GAMES_DIR         passed through, for a provisional game profile
 #   DM_ENTITLEMENTS      empty: no Increased Memory Limit request in the prepared project (default: requested, as build_ipa.sh does)
-# The host is compiled from dm/host for one game profile (gen_build.py: game_profile.h). The runtime profile (DM_PROFILE) covers most
-# of it, but parts of the host still read the compiled game_profile.h macros (DM_GAME_ID in the save sync, the shader key skip, the
-# texture upload switches, the module list fallback), so a shell holds the games of one profile for now: several frameworks of different
-# games are refused until those sites read dm_profile() (M3).
+# The host is compiled from dm/host once, with the first framework's game profile as its compiled defaults (gen_build.py:
+# game_profile.h). Every host site reads the runtime profile (dm_profile(), hle_profile.h), which the shell points at the chosen game's
+# profile.tsv before the host starts (DM_PROFILE), so one host runs every game of the shell.
 set -u
 cd "$(dirname "$0")/.." || exit 1
 IOS_SOURCE=$PWD; DM=$(cd .. && pwd); REPO=$(cd "$DM/.." && pwd)
@@ -55,14 +54,11 @@ for p in paths:
     if m.get('chain') != chain: sys.exit(f'[RED] {p}: built for shader chain {m.get("chain")}, this checkout is {chain}: build the game again')
     if tid in seen: sys.exit(f'[RED] {p}: title ID {tid} is already in the shell ({seen[tid]})')
     seen[tid] = p; rows.append((tid, p, m.get('name', '')))
-if len({r[0] for r in rows}) > 1:
-    sys.exit('[RED] games of different profiles in one shell: ' + ', '.join(f'{r[2]} ({r[0]})' for r in rows) +
-             '. The host is still compiled for one game profile (build_shell.sh, header): one game per shell until M3')
 with open(out, 'w', encoding='utf-8') as f:
     for tid, p, name in rows: f.write(f'{tid}\t{p}\t{name}\n')
 PY
 export GAME=$(head -1 "$FWLIST" | cut -f1)
-t "shell: $DM_SHELL_NAME ($DM_BUNDLE_ID), host profile $GAME, games: $(cut -f3 "$FWLIST" | paste -sd, -)"
+t "shell: $DM_SHELL_NAME ($DM_BUNDLE_ID), compiled defaults of $GAME, games: $(cut -f3 "$FWLIST" | paste -sd, -)"
 
 t "generate Gen/ (host sources, shared files, the project)"
 for item in Sources Shell tools; do ln -sfn "$IOS_SOURCE/$item" "$S/$item" || die "link $item"; done

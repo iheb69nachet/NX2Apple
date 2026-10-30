@@ -148,6 +148,28 @@ bool dm_show_launcher(void *view_controller, void (*done)(void)) { (void)view_co
 - (void)sceneDidBecomeActive:(UIScene *)s { front_ios_focus_event(3); }
 @end
 
+// The performance HUD (the per-game setting DM_METAL_HUD) needs MTL_HUD_ENABLED in the environment before Metal starts in this
+// process, and the library's views start it long before Play: set at Play (front_hud_env) it came too late and the HUD stayed off,
+// although front_ios.m logged it on (verified on a device: the same variable given at launch shows it). So it is decided here, before
+// UIApplicationMain, from the game played last, the one Play most likely starts again. A change of the setting made in this session
+// takes effect at the next start of the app (front_hud_env still sets it at Play, for the layer's own HUD properties).
+static void metal_hud_at_start(void) {
+    if (getenv("MTL_HUD_ENABLED")) return;   // given at launch (Xcode, devicectl): it wins
+    NSString *last = nil; NSDate *when = nil;
+    for (NSString *fw in [NSFileManager.defaultManager contentsOfDirectoryAtPath:NSBundle.mainBundle.privateFrameworksPath error:nil]) {
+        if (![fw hasPrefix:@"DmGame"] || ![fw hasSuffix:@".framework"]) continue;
+        NSString *tid = [fw substringWithRange:NSMakeRange(6, fw.length - 6 - 10)];
+        NSDate *d = [[NSUserDefaults alloc] initWithSuiteName:[@"dev.nx2apple.shell.game." stringByAppendingString:tid]].dictionaryRepresentation[@"shell.lastPlayed"];
+        if ([d isKindOfClass:NSDate.class] && (!when || [d compare:when] == NSOrderedDescending)) { when = d; last = tid; }
+    }
+    if (!last) return;
+    id hud = [[NSUserDefaults alloc] initWithSuiteName:[@"dev.nx2apple.shell.game." stringByAppendingString:last]].dictionaryRepresentation[@"launcher.DM_METAL_HUD"];
+    if ([hud isKindOfClass:NSString.class] && [hud intValue]) {
+        setenv("MTL_HUD_ENABLED", "1", 1); setenv("MTL_HUD_HIDE_METALFX_METRICS", "1", 0);   // as front_hud_env does
+        fprintf(stderr, "shell: performance HUD on for this start (%s, played last, has it on)\n", last.UTF8String);
+    }
+}
+
 int main(int argc, char **argv) {
     @autoreleasepool {
         log_to([documents() stringByAppendingPathComponent:@"shell-log.txt"]);
@@ -159,6 +181,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "shell: free space %lld bytes\n", avail ? avail.longLongValue : -1LL);
         for (NSString *fw in [NSFileManager.defaultManager contentsOfDirectoryAtPath:NSBundle.mainBundle.privateFrameworksPath error:nil])
             fprintf(stderr, "shell: framework %s\n", fw.UTF8String);
+        metal_hud_at_start();
     }
     @autoreleasepool { return UIApplicationMain(argc, argv, nil, NSStringFromClass(App.class)); }
 }

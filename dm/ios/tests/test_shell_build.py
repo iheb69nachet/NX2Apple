@@ -1,21 +1,21 @@
 """Route C shell (docs/launcher-c-plan.md M2): dm/ios/tools/build_shell.sh, off a device.
 
 The checks of the frameworks it is given run anywhere: a manifest of another shader chain, two frameworks of one title, a folder
-whose name the manifest does not give, games of two profiles (the host is still compiled for one) and a missing executable are refused
-before anything is generated. With XcodeGen and an iPhoneOS SDK the shell is also generated and built, unsigned, around a synthetic
+whose name the manifest does not give and a missing executable are refused before anything is generated, and two games go into one
+shell (the host reads each game's runtime profile). With XcodeGen and an iPhoneOS SDK the shell is also generated and built, unsigned, around a synthetic
 framework (a one-symbol dylib, no game code): the app embeds the framework without linking it (the shell dlopens it), carries
 LC_RPATH @executable_path/Frameworks, the frontend-ios package's resource bundles, its name and the chain in Info.plist, and a prepared
 project asks for the Increased Memory Limit (DM_ENTITLEMENTS= leaves it out). No game files, shaders or signing are involved.
 """
 import json
 import os
-from pathlib import Path
 import plistlib
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 SCRIPT = REPO / 'dm/ios/tools/build_shell.sh'
@@ -24,13 +24,13 @@ OTHER = '0100000000010000'
 CHAIN = 'b-' + next(line.split('"')[1] for line in (REPO / 'dm/gfx/nvn/dmsh_chain.h').read_text().splitlines()
                     if line.startswith('#define DMSH_CHAIN "'))
 HAS_TOOLS = (sys.platform == 'darwin' and shutil.which('xcodegen') and shutil.which('xcodebuild')
-             and subprocess.run(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], capture_output=True).returncode == 0)
+             and subprocess.run(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], capture_output=True, check=False).returncode == 0)
 
 
 def font_python():
     """A python that has fontTools, for make_ext_font.py (FONT_PY), or None."""
     for py in (os.environ.get('FONT_PY'), sys.executable, shutil.which('python3')):
-        if py and subprocess.run([py, '-c', 'import fontTools'], capture_output=True).returncode == 0: return py
+        if py and subprocess.run([py, '-c', 'import fontTools'], capture_output=True, check=False).returncode == 0: return py
     return None
 
 
@@ -56,7 +56,7 @@ def framework(root, title=GAME, chain=CHAIN, name=None, executable=True, compile
         src = Path(root) / 'marker.c'
         src.write_text('__attribute__((used, visibility("default"))) const char dmgame_image_marker[] = "DmGame";\n')
         r = subprocess.run(['xcrun', '-sdk', 'iphoneos', 'clang', '-arch', 'arm64', '-mios-version-min=26.0', '-dynamiclib',
-                            '-install_name', f'@rpath/{exe}.framework/{exe}', str(src), '-o', str(fw / exe)], capture_output=True, text=True)
+                            '-install_name', f'@rpath/{exe}.framework/{exe}', str(src), '-o', str(fw / exe)], capture_output=True, text=True, check=False)
         assert r.returncode == 0, r.stderr
     elif executable:
         (fw / exe).write_bytes(b'stand-in')
@@ -65,7 +65,7 @@ def framework(root, title=GAME, chain=CHAIN, name=None, executable=True, compile
 
 def run_script(mode, frameworks, shell_dir, **extra):
     env = dict(os.environ, SHELL_DIR=str(shell_dir), DM_SHELL_FRAMEWORKS='\n'.join(str(f) for f in frameworks), **extra)
-    return subprocess.run(['bash', str(SCRIPT), mode], env=env, capture_output=True, text=True)
+    return subprocess.run(['bash', str(SCRIPT), mode], env=env, capture_output=True, text=True, check=False)
 
 
 class FrameworkChecks(unittest.TestCase):
@@ -89,8 +89,12 @@ class FrameworkChecks(unittest.TestCase):
         b = framework(self.root / 'b')
         self.refused([a, b], f'title ID {GAME} is already in the shell')
 
-    def test_games_of_two_profiles_are_refused_until_m3(self):
-        self.refused([framework(self.root / 'a'), framework(self.root / 'b', title=OTHER)], 'one game per shell until M3')
+    def test_two_games_go_into_one_shell(self):
+        # Checked only up to the frameworks list here (the generation needs XcodeGen): both games, the first one's profile compiled in
+        r = run_script('--prepare-xcode', [framework(self.root / 'a'), framework(self.root / 'b', title=OTHER)], self.shell, PATH='/usr/bin:/bin')
+        rows = (self.shell / 'frameworks.txt').read_text().splitlines()
+        self.assertEqual([row.split('\t')[0] for row in rows], [GAME, OTHER], r.stdout)
+        self.assertIn(f'compiled defaults of {GAME}', r.stdout)
 
     def test_a_folder_the_manifest_does_not_name_is_refused(self):
         self.refused([framework(self.root, name='Renamed')], f'the manifest names DmGame{GAME}.framework')
@@ -143,9 +147,9 @@ class ShellBuild(unittest.TestCase):
         self.assertTrue((app / f'Frameworks/{fw.name}/game.manifest.json').is_file())
         self.assertTrue((app / 'dm/font/standard.ttf').is_file())
         self.assertTrue(any(p.name.endswith('ShellHost.bundle') for p in app.iterdir()), 'the ShellHost package resources')
-        load = subprocess.run(['otool', '-l', str(app / 'DmShell')], capture_output=True, text=True).stdout
+        load = subprocess.run(['otool', '-l', str(app / 'DmShell')], capture_output=True, text=True, check=False).stdout
         self.assertIn('@executable_path/Frameworks', load)
-        self.assertNotIn(fw.stem, subprocess.run(['otool', '-L', str(app / 'DmShell')], capture_output=True, text=True).stdout,
+        self.assertNotIn(fw.stem, subprocess.run(['otool', '-L', str(app / 'DmShell')], capture_output=True, text=True, check=False).stdout,
                          'the shell dlopens the game framework, it must not link it')
 
 
