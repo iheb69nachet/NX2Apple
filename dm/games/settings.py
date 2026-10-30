@@ -69,6 +69,7 @@ def build(gid, patched, control):
         return macros[name].strip('"')
 
     def shown(cond, n):
+        if '&' in cond: return all(shown(c, n) for c in cond.split('&'))   # every one of the joined conditions
         if cond == 'always': return True
         if cond == 'languages>1': return len(langs) > 1
         if cond.startswith('fixups:'): return cond[7:] in keys
@@ -94,7 +95,10 @@ def build(gid, patched, control):
         if kind == 'choice' and values != 'languages': return {v.split('=', 1)[0] for v in values.split(',')}
         return None
 
-    out, table, base = [], {r[1][0]: takes(r[1][1], r[1][2]) for r in rows()}, render_base(g)
+    out, at, table, base = [], {}, {}, render_base(g)
+    for _, r in rows():   # a variable several rows set takes the values of all of them
+        t = takes(r[1], r[2])
+        table[r[0]] = None if t is None or (r[0] in table and table[r[0]] is None) else table.get(r[0], set()) | t
     for n, (var, kind, values, default, cond, section, label, note, extra) in rows():
         m = meta(extra, n)
         if 'needs' in m:
@@ -119,7 +123,8 @@ def build(gid, patched, control):
             if len(on_off) != 2 or not all(on_off) or on_off[0] == on_off[1]: sys.exit(f'settings.tsv:{n}: toggle values are - or <on>/<off>: {values}')
             s.update(on=on_off[0], off=on_off[1], default=on_off[0] if s['default'] == '1' else on_off[1])   # the default as the value the variable takes
         else: sys.exit(f'settings.tsv:{n}: unknown kind {kind}')
-        out.append(s)
+        if var in at: out[at[var]] = s   # a later row whose condition holds replaces an earlier one for the same variable, in its place
+        else: at[var] = len(out); out.append(s)
     return {'schema': SCHEMA, 'game': g.id, 'settings': out}
 
 

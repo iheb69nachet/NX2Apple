@@ -20,3 +20,5 @@ cheats-mac-panel
 front-mac-enter-fullscreen-once-the-app-is-activ
 front-mac-dm-screen
 front-mac-hide-the-pointer-after-a-few-idle-seco
+botw-above-60-fps-and-above-1080p
+settings-botw-120-fps-and-render-scale-on-the-mac

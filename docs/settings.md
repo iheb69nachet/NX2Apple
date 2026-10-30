@@ -23,9 +23,13 @@ A Mac app carries the same list (`Contents/Resources/dm/launcher.json`), without
 
 Games whose speed the app controls (Breath of the Wild, Tears of the Kingdom and a few others) offer **30 fps** or **60 fps**. 60 is smoother; 30 is what the Switch ran and uses less power, so the phone stays cooler and the battery lasts longer. The game runs at real speed either way.
 
+On the Mac, Breath of the Wild also offers **120 fps**. Each frame then steps the game by the time the previous frame took. A screen has to refresh at 120 Hz or more to show every frame. The iPhone stays at 30 or 60.
+
 ### Render scale
 
 The size of the 3D picture, from 50 to 100 %. Below 100 % the size is fixed there and the game's own dynamic resolution is off; 100 % keeps the game's own. Lower can be lighter on the GPU but is blurrier; the HUD and text keep their sharpness. Only games the app can scale offer it.
+
+On the Mac, Breath of the Wild goes up to 240 %, which is 3840 × 2160 docked. Above 100 % the game gets more memory for its larger picture, and above about 120 % the whole frame is shown at that size.
 
 ### Console mode
 
@@ -212,8 +216,8 @@ A line like `DM_PRESENT_SNAP=0` in `Documents/env.txt` (in the Files app, under 
 
 | Setting | Variable | Values |
 |---|---|---|
-| Frame rate | `DM_FPS_TARGET` | `30`, `60` |
-| Render scale | `DM_RENDER_SCALE` | `0.5` to `1.0` |
+| Frame rate | `DM_FPS_TARGET` | `30`, `60` (Breath of the Wild on the Mac: `61` to `240`) |
+| Render scale | `DM_RENDER_SCALE` | `0.5` to `1.0` (Breath of the Wild on the Mac: up to `3.0`) |
 | Console mode | `DM_OPMODE` | `1` docked, `0` handheld |
 | Game language | `DM_LANG` | a language code, such as `ja` |
 | Display mode (Mac) | `DM_FULLSCREEN` | `1` fullscreen, `0` a window |

@@ -148,6 +148,36 @@ class LauncherSettingsTests(unittest.TestCase):
                 profile = type('Profile', (), {'id': BOTW, 'get': lambda self, key, default='', bad=bad: bad})()
                 with self.assertRaises(SystemExit): settings.render_base(profile)
 
+    def test_variable_step_and_larger_render_pool_on_the_mac_only(self):
+        """A build with the variable frame step and the render pool stub (seedds/nxnative#76) offers 120 fps and a render scale above 1.0 on the Mac, in the place of the usual rows"""
+        def listed(keys, platform):
+            env = {'GFXAPI': 'nvn', **({'SETTINGS_PLATFORM': platform} if platform else {})}
+            with tempfile.TemporaryDirectory() as tmp, patch.object(settings.nacp, 'languages', return_value=['en-US']), patch.dict(os.environ, env):
+                if not platform: os.environ.pop('SETTINGS_PLATFORM', None)
+                (Path(tmp) / 'main.fixups.tsv').write_text(''.join(f'# {k}\t1\n' for k in keys))
+                return settings.build(BOTW, tmp, Path(tmp) / 'control.nacp')['settings']
+        usual, more = ['RENDER_SCALE'], ['RENDER_SCALE', 'VAR_STEP', 'RENDER_POOL']
+        for keys, platform, fps, hi in [(usual, 'mac', ['30', '60'], 1.0), (more, None, ['30', '60'], 1.0), (more, 'mac', ['30', '60', '120'], 2.4)]:
+            with self.subTest(keys=keys, platform=platform):
+                rows = listed(keys, platform)
+                envs = [s['env'] for s in rows]
+                self.assertEqual((envs.count('DM_FPS_TARGET'), envs.count('DM_RENDER_SCALE')), (1, 1))
+                self.assertEqual(envs.index('DM_FPS_TARGET'), 0)
+                s = {s['env']: s for s in rows}
+                self.assertEqual([o[0] for o in s['DM_FPS_TARGET']['options']], fps)
+                self.assertEqual((s['DM_FPS_TARGET']['default'], s['DM_FPS_TARGET']['level']), ('60', 'basic'))
+                self.assertEqual((s['DM_RENDER_SCALE']['min'], s['DM_RENDER_SCALE']['max'], s['DM_RENDER_SCALE']['default']), (0.5, hi, '1.0'))
+                self.assertEqual(s['DM_RENDER_SCALE']['base'], {'docked': [1600, 900], 'handheld': [1280, 720]})
+
+    def test_joined_conditions_all_hold(self):
+        tsv = '# header\nDM_X\ttoggle\t-\t0\talways&platform:mac\tGame\tX\nDM_Y\ttoggle\t-\t0\tplatform:ios&fixups:NOPE\tGame\tY\n'
+        for platform, want in (('mac', ['DM_X']), ('ios', [])):
+            with self.subTest(platform=platform), tempfile.TemporaryDirectory() as tmp:
+                (Path(tmp) / 'settings.tsv').write_text(tsv, encoding='utf-8')
+                with patch.object(settings, 'HERE', Path(tmp)), patch.object(settings.nacp, 'languages', return_value=['en-US']), \
+                        patch.dict(os.environ, {'SETTINGS_PLATFORM': platform}):
+                    self.assertEqual([s['env'] for s in settings.build(BOTW, tmp, Path(tmp) / 'control.nacp')['settings']], want)
+
     def test_table_format_is_strict(self):
         good = 'DM_X\ttoggle\t-\t0\talways\tGame\tX\n'
         for bad, why in [('DM_X\ttoggle\t-\t0\talways\tGame\tX\t\tlevel=basic\textra\n', 'columns'),
