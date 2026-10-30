@@ -51,8 +51,10 @@ struct BuildFailureCard: View {
                 fix(kind, "fail.cloudFolder.button")
             case .teamTaken, .noSigningAccount:
                 if BuildModel.installedXcode() != nil { fix(kind, "fail.openXcode") }
-            case .deviceTransfer:
+            case .deviceTransfer, .devicePairing:
                 fix(kind, "fail.retry")
+            case .shellDataIncomplete:
+                fix(kind, "shell.retry")
             default: EmptyView()
             }
             if kind.overrideFlag != nil {
