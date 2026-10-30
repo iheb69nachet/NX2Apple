@@ -28,3 +28,4 @@ dm-framework-env-switch-row
 route-c-shell
 nsp-shell-framework
 front-progress-hook
+runtime-profile-every-site
