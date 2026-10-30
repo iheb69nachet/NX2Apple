@@ -75,8 +75,8 @@ void dm_ue_cvar_tick(void) {
     if (state < 0) {
         state = 0;
         const char *e = getenv("DM_UE_TEXTURE_POOL");
-        target = e ? atoi(e) : TARGET_OS_IPHONE ? 0 : DM_GAME_UE_TEXTURE_POOL; src = e ? "DM_UE_TEXTURE_POOL" : "game profile ue_texture_pool";
-        if (target <= 0) { if (DM_GAME_UE_TEXTURE_POOL) LOG("main: Unreal r.Streaming.PoolSize left as the game sets it (%s)", e ? src : "iOS without DM_UE_TEXTURE_POOL"); return; }
+        target = e ? atoi(e) : TARGET_OS_IPHONE ? 0 : dm_profile()->ue_texture_pool; src = e ? "DM_UE_TEXTURE_POOL" : "game profile ue_texture_pool";
+        if (target <= 0) { if (dm_profile()->ue_texture_pool) LOG("main: Unreal r.Streaming.PoolSize left as the game sets it (%s)", e ? src : "iOS without DM_UE_TEXTURE_POOL"); return; }
         struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
         obj_off = dm_ue_cvar("r.Streaming.PoolSize");
         clock_gettime(CLOCK_MONOTONIC, &t1); double ms = (double)(t1.tv_sec - t0.tv_sec) * 1e3 + (double)(t1.tv_nsec - t0.tv_nsec) / 1e6;
