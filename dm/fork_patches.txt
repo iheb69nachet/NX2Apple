@@ -20,3 +20,8 @@ cheats-mac-panel
 front-mac-enter-fullscreen-once-the-app-is-activ
 front-mac-dm-screen
 front-mac-hide-the-pointer-after-a-few-idle-seco
+route-c-loader-image-header
+route-c-game-framework
+route-c-framework-build
+route-c-framework-tests
+dm-framework-env-switch-row

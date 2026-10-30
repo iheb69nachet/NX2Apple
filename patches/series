@@ -21,3 +21,8 @@
 0030-front-mac-enter-fullscreen-once-the-app-is-activ.patch
 0031-front-mac-dm-screen.patch
 0032-front-mac-hide-the-pointer-after-a-few-idle-seco.patch
+0034-route-c-loader-image-header.patch
+0035-route-c-game-framework.patch
+0036-route-c-framework-build.patch
+0037-route-c-framework-tests.patch
+0038-dm-framework-env-switch-row.patch
