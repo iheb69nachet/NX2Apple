@@ -142,6 +142,8 @@ class ShellBuild(unittest.TestCase):
         self.assertEqual(info['CFBundleDisplayName'], 'Shell Fixture')
         self.assertEqual(info['CFBundleIdentifier'], 'org.nxnative.ci.shell')
         self.assertEqual('b-' + info['DMChain'], CHAIN)
+        self.assertEqual(info['CFBundleIcons']['CFBundlePrimaryIcon']['CFBundleIconName'], 'AppIcon')   # frontend-ios/AppIcon.icon
+        self.assertTrue((app / 'Assets.car').is_file())
         self.assertEqual(info['UIApplicationSceneManifest']['UISceneConfigurations']['UIWindowSceneSessionRoleApplication'][0]['UISceneDelegateClassName'], 'SceneDelegate')
         self.assertTrue((app / f'Frameworks/{fw.name}/{fw.stem}').is_file())
         self.assertTrue((app / f'Frameworks/{fw.name}/game.manifest.json').is_file())
