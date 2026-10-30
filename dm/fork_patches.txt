@@ -25,7 +25,7 @@ route-c-game-framework
 route-c-framework-build
 route-c-framework-tests
 dm-framework-env-switch-row
+front-progress-hook
 route-c-shell
 nsp-shell-framework
-front-progress-hook
 runtime-profile-every-site

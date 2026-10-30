@@ -40,13 +40,6 @@ static void log_to(NSString *log) {
     fprintf(stderr, "fork patches: %s\n", [fork_patches isKindOfClass:NSString.class] && fork_patches.length ? fork_patches.UTF8String : "none");
 }
 
-// The variables worth a line of their own: what makes a report readable (which game, which data, which profile)
-static int logged_key(const char *k) {
-    static const char *keys[] = {"DM_PROFILE", "DM_ROMFS", "DM_SAVE", "DM_TEMP", "DM_MSL_DIR", "DM_PSO_BUNDLE", "DM_NVN_SHMAP", "DM_AOC_DIR", "DM_SAVE_SYNC", "DM_LANG", "DM_ENV_FILE_KEYS"};
-    for (size_t i = 0; i < sizeof keys / sizeof *keys; i++) if (!strcmp(k, keys[i])) return 1;
-    return 0;
-}
-
 const char *dm_shell_start_game(const char *const *keys, const char *const *values, int n, const char *const *argv, int argc,
                                 const char *executable, const char *marker, const char *log_path, const char *cwd) {
     static char err[512];
@@ -57,7 +50,7 @@ const char *dm_shell_start_game(const char *const *keys, const char *const *valu
     fprintf(stderr, "shell: starting %s (%s)\n", argv[1], executable);
     for (int i = 0; i < n; i++) {
         setenv(keys[i], values[i], 1);
-        if (logged_key(keys[i])) fprintf(stderr, "boot: %s=%s\n", keys[i], values[i]);
+        fprintf(stderr, "boot: %s=%s\n", keys[i], values[i]);   // every one: a report then shows which of the game's settings reached the engine
     }
     if (cwd && *cwd) chdir(cwd);
     front_hud_env();   // before the early loading below can make a device (main.m's order)
@@ -149,25 +142,17 @@ bool dm_show_launcher(void *view_controller, void (*done)(void)) { (void)view_co
 @end
 
 // The performance HUD (the per-game setting DM_METAL_HUD) needs MTL_HUD_ENABLED in the environment before Metal starts in this
-// process, and the library's views start it long before Play: set at Play (front_hud_env) it came too late and the HUD stayed off,
-// although front_ios.m logged it on (verified on a device: the same variable given at launch shows it). So it is decided here, before
-// UIApplicationMain, from the game played last, the one Play most likely starts again. A change of the setting made in this session
-// takes effect at the next start of the app (front_hud_env still sets it at Play, for the layer's own HUD properties).
-static void metal_hud_at_start(void) {
-    if (getenv("MTL_HUD_ENABLED")) return;   // given at launch (Xcode, devicectl): it wins
-    NSString *last = nil; NSDate *when = nil;
-    for (NSString *fw in [NSFileManager.defaultManager contentsOfDirectoryAtPath:NSBundle.mainBundle.privateFrameworksPath error:nil]) {
-        if (![fw hasPrefix:@"DmGame"] || ![fw hasSuffix:@".framework"]) continue;
-        NSString *tid = [fw substringWithRange:NSMakeRange(6, fw.length - 6 - 10)];
-        NSDate *d = [[NSUserDefaults alloc] initWithSuiteName:[@"dev.nx2apple.shell.game." stringByAppendingString:tid]].dictionaryRepresentation[@"shell.lastPlayed"];
-        if ([d isKindOfClass:NSDate.class] && (!when || [d compare:when] == NSOrderedDescending)) { when = d; last = tid; }
-    }
-    if (!last) return;
-    id hud = [[NSUserDefaults alloc] initWithSuiteName:[@"dev.nx2apple.shell.game." stringByAppendingString:last]].dictionaryRepresentation[@"launcher.DM_METAL_HUD"];
-    if ([hud isKindOfClass:NSString.class] && [hud intValue]) {
-        setenv("MTL_HUD_ENABLED", "1", 1); setenv("MTL_HUD_HIDE_METALFX_METRICS", "1", 0);   // as front_hud_env does
-        fprintf(stderr, "shell: performance HUD on for this start (%s, played last, has it on)\n", last.UTF8String);
-    }
+// process, and the library's views start it long before Play: set at Play it comes too late and the HUD stays off. So the shell turns
+// Metal's HUD on for every start, here before UIApplicationMain, and the game's own setting decides at Play: front_ios.m sets the game
+// layer's developerHUDProperties mode to default, or with DM_HUD_PER_LAYER to disabled. A change of the setting in the library applies
+// at the next Play, as every other setting does (verified on an iPhone 2026-10-30: on and off in one start each, no HUD over the
+// library). MTL_HUD_HIDE_METALFX_METRICS stays unset, so the HUD shows MetalFX's rows (input and output size) while the Upscaling
+// setting MetalFX scales the picture.
+static void metal_hud_per_layer(void) {
+    if (getenv("MTL_HUD_ENABLED")) { fprintf(stderr, "shell: MTL_HUD_ENABLED given at launch, the HUD follows it\n"); return; }   // Xcode, devicectl: it wins
+    setenv("MTL_HUD_ENABLED", "1", 1);
+    setenv("DM_HUD_PER_LAYER", "1", 1);
+    fprintf(stderr, "shell: Metal's HUD is ready, each game's Performance HUD setting turns it on at Play\n");
 }
 
 int main(int argc, char **argv) {
@@ -181,7 +166,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "shell: free space %lld bytes\n", avail ? avail.longLongValue : -1LL);
         for (NSString *fw in [NSFileManager.defaultManager contentsOfDirectoryAtPath:NSBundle.mainBundle.privateFrameworksPath error:nil])
             fprintf(stderr, "shell: framework %s\n", fw.UTF8String);
-        metal_hud_at_start();
+        metal_hud_per_layer();
     }
     @autoreleasepool { return UIApplicationMain(argc, argv, nil, NSStringFromClass(App.class)); }
 }
