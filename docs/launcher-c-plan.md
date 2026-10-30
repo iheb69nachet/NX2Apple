@@ -1,16 +1,17 @@
 # Route C implementation plan — shell app + per-game framework
 
-Status (2026-10-30): **M1 and M2 run on a device.** The shell app (`dm/ios/tools/build_shell.sh`,
-`dm/ios/project-shell.yml`, `dm/ios/Shell/`) with Breath of the Wild's `DmGame01007EF00011E000.framework`
-(`build_ipa.sh DM_FRAMEWORK_ONLY`, the NSP script's `--shell-framework`) was installed by the Mac launcher's
-one-app target on an iPhone 17 Pro Max (iOS 27.0.1): the library lists the game from the embedded framework,
-its data sits in `Documents/games/01007EF00011E000/`, and Play loads the framework (`boot: game framework …`,
-the module bases of main, subsdk0 and sdk from its sections), mounts the RomFS image and both DLC and reaches
-the game's frame loop. What M2 built and why is in the section below. Open: M3 needs the host to stop reading
-the compiled `game_profile.h` macros (a shell holds one game profile until then, `build_shell.sh` refuses a
-second), M4 (external drive, per-game DLC beyond `aoc/`), M5 (incremental frameworks, broken-framework
-tolerance on a device, re-sign timing). The dlopen gate: [probe-dlopen.md](probe-dlopen.md), the design:
-[launcher-c-design.md](launcher-c-design.md).
+Status (2026-10-30): **M1, M2 and M3 run on a device.** The shell app (`dm/ios/tools/build_shell.sh`,
+`dm/ios/project-shell.yml`, `dm/ios/Shell/`) holds Breath of the Wild's `DmGame01007EF00011E000.framework` and
+Hades' `DmGame0100535012974000.framework` (`build_ipa.sh DM_FRAMEWORK_ONLY`, the NSP script's `--shell-framework`),
+installed by the Mac launcher's one-app target on an iPhone 17 Pro Max (iOS 27.0.1). The library lists both from
+the embedded frameworks, each game's data sits in `Documents/games/<title ID>/`, and Play loads the chosen
+framework (`boot: game framework …`, the module bases from its sections), points `DM_PROFILE` at its
+`profile.tsv` and reaches the game's frame loop: Breath of the Wild (NVN, both DLC) and Hades (Vulkan) on one host
+binary, which reads every game value from the runtime profile (patch 0042). The per-game settings (language,
+performance HUD) reach the engine. Open: M4 (external drive, per-game msl/pso/profile overrides, DLC beyond
+`aoc/`), M5 (incremental frameworks, broken-framework tolerance on a device, re-sign timing), the shell's own
+"Preparing shaders" screen (the front ends' progress hook, patch 0041, forwarded as seedds/nxnative#742). The
+dlopen gate: [probe-dlopen.md](probe-dlopen.md), the design: [launcher-c-design.md](launcher-c-design.md).
 
 ## Milestones
 
