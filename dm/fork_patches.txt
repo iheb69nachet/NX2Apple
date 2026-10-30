@@ -25,3 +25,5 @@ route-c-game-framework
 route-c-framework-build
 route-c-framework-tests
 dm-framework-env-switch-row
+route-c-shell
+nsp-shell-framework
